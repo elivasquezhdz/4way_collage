@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Image Collate Tool</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+    padding: 20px;
+  }
+  canvas {
+    border: 1px solid #ccc;
+    margin: 10px 0;
+    max-width: 100%;
+  }
+  .row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<h2>Image Collate (JS Canvas)</h2>
+
+<input type="file" id="upload" accept="image/*" /><br><br>
+
+<label>
+  Sections:
+  <input type="range" id="sections" min="2" max="60" value="20">
+  <span id="sectionsVal">20</span>
+</label>
+
+<div class="row">
+  <div>
+    <h3>Original</h3>
+    <canvas id="original"></canvas>
+  </div>
+  <div>
+    <h3>Modified</h3>
+    <canvas id="output"></canvas>
+  </div>
+</div>
+
+<script>
+const upload = document.getElementById("upload");
+const sectionsSlider = document.getElementById("sections");
+const sectionsVal = document.getElementById("sectionsVal");
+
+const originalCanvas = document.getElementById("original");
+const outputCanvas = document.getElementById("output");
+
+let sourceImage = null;
+
+sectionsSlider.oninput = () => {
+  sectionsVal.textContent = sectionsSlider.value;
+  if (sourceImage) processImage();
+};
+
+upload.onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const img = new Image();
+  img.onload = () => {
+    sourceImage = img;
+    drawOriginal(img);
+    processImage();
+  };
+  img.src = URL.createObjectURL(file);
+};
+
+function drawOriginal(img) {
+  originalCanvas.width = img.width;
+  originalCanvas.height = img.height;
+  const ctx = originalCanvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+}
+
+function processImage() {
+  const sections = parseInt(sectionsSlider.value);
+  const mosaic = createMosaic(sourceImage);
+  const vc = sliceAndReorder(mosaic, sections, "v");
+  const vc2 = sliceAndReorder(vc, sections, "h");
+
+  outputCanvas.width = vc2.width;
+  outputCanvas.height = vc2.height;
+  outputCanvas.getContext("2d").drawImage(vc2, 0, 0);
+}
+
+/* ---------- Equivalent of the PIL mosaic ---------- */
+function createMosaic(img) {
+  const w = img.width;
+  const h = img.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = w * 2;
+  canvas.height = h * 2;
+  const ctx = canvas.getContext("2d");
+
+  // original
+  ctx.drawImage(img, 0, 0);
+
+  // horizontal flip
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(img, -2 * w, 0);
+  ctx.restore();
+
+  // vertical flip
+  ctx.save();
+  ctx.scale(1, -1);
+  ctx.drawImage(img, 0, -2 * h);
+  ctx.restore();
+
+  // horizontal + vertical
+  ctx.save();
+  ctx.scale(-1, -1);
+  ctx.drawImage(img, -2 * w, -2 * h);
+  ctx.restore();
+
+  return canvas;
+}
+
+/* ---------- Equivalent of img_sect + reorder ---------- */
+function sliceAndReorder(canvas, sections, orientation) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const ctx = canvas.getContext("2d");
+
+  const slices = [];
+  if (orientation === "v") {
+    const sw = Math.floor(w / sections);
+    for (let i = 0; i < sections; i++) {
+      const cw = i === sections - 1 ? w - sw * i : sw;
+      slices.push(getSlice(ctx, i * sw, 0, cw, h));
+    }
+  } else {
+    const sh = Math.floor(h / sections);
+    for (let i = 0; i < sections; i++) {
+      const ch = i === sections - 1 ? h - sh * i : sh;
+      slices.push(getSlice(ctx, 0, i * sh, w, ch));
+    }
+  }
+
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const octx = out.getContext("2d");
+
+  for (let i = 0; i < Math.floor(sections / 2); i++) {
+    const a = slices[i];
+    const b = slices[sections - 1 - i];
+
+    if (orientation === "v") {
+      octx.drawImage(a, a.width * (i * 2), 0);
+      octx.drawImage(b, a.width * (2 * i + 1), 0);
+    } else {
+      octx.drawImage(a, 0, a.height * (i * 2));
+      octx.drawImage(b, 0, a.height * (2 * i + 1));
+    }
+  }
+
+  return out;
+}
+
+function getSlice(ctx, x, y, w, h) {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  c.getContext("2d").drawImage(
+    ctx.canvas,
+    x, y, w, h,
+    0, 0, w, h
+  );
+  return c;
+}
+</script>
+
+</body>
+</html>
