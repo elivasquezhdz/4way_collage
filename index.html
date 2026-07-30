@@ -40,7 +40,8 @@
   </div>
   <div>
     <h3>Modified</h3>
-    <canvas id="output"></canvas>
+    <canvas id="output"></canvas><br>
+    <button id="download" disabled>Download modified image</button>
   </div>
 </div>
 
@@ -51,8 +52,10 @@ const sectionsVal = document.getElementById("sectionsVal");
 
 const originalCanvas = document.getElementById("original");
 const outputCanvas = document.getElementById("output");
+const downloadBtn = document.getElementById("download");
 
 let sourceImage = null;
+let sourceName = "collage";
 
 sectionsSlider.oninput = () => {
   sectionsVal.textContent = sectionsSlider.value;
@@ -62,6 +65,8 @@ sectionsSlider.oninput = () => {
 upload.onchange = (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  sourceName = file.name.replace(/\.[^.]+$/, "") || "collage";
 
   const img = new Image();
   img.onload = () => {
@@ -88,7 +93,20 @@ function processImage() {
   outputCanvas.width = vc2.width;
   outputCanvas.height = vc2.height;
   outputCanvas.getContext("2d").drawImage(vc2, 0, 0);
+
+  downloadBtn.disabled = false;
 }
+
+downloadBtn.onclick = () => {
+  outputCanvas.toBlob((blob) => {
+    if (!blob) return;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = sourceName + "_collage.png";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, "image/png");
+};
 
 /* ---------- Equivalent of the PIL mosaic ---------- */
 function createMosaic(img) {
