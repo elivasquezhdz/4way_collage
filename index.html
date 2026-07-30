@@ -91,6 +91,7 @@ animation you can download.</p>
     <select id="animOrder">
       <option value="forward">Forward</option>
       <option value="reverse">Reverse</option>
+      <option value="bounce">Bounce (back &amp; forth)</option>
     </select>
   </label>
 </div>
@@ -337,8 +338,14 @@ function buildAnimFrames() {
   }
   if (!values.length) values.push(start);
 
-  // Frame order: forward (as swept) or reversed.
-  if (animOrder.value === "reverse") values.reverse();
+  // Frame order: forward (as swept), reversed, or bounce (forward then back
+  // for a seamless loop with no jump).
+  if (animOrder.value === "reverse") {
+    values.reverse();
+  } else if (animOrder.value === "bounce") {
+    const back = values.slice(1, -1).reverse();
+    values.push(...back);
+  }
 
   return values.map((s) => renderCollageFrame(scaled, s));
 }
