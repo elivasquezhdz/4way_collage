@@ -38,6 +38,16 @@
     color: #555;
     font-size: 0.9em;
   }
+  .controls {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 10px 0;
+  }
+  .controls input[type="number"] {
+    width: 4em;
+  }
 </style>
 </head>
 <body>
@@ -66,9 +76,24 @@
 
 <hr>
 
-<h2>Animation (min &rarr; max sections)</h2>
-<p>Sweeps the collage effect from the lowest to the highest number of sections
-and back, as a looping animation you can download.</p>
+<h2>Animation</h2>
+<p>Sweeps the collage effect across a range of section counts, as a looping
+animation you can download.</p>
+
+<div class="controls">
+  <label>Start:
+    <input type="number" id="animStart" min="2" max="60" value="2">
+  </label>
+  <label>End:
+    <input type="number" id="animEnd" min="2" max="60" value="60">
+  </label>
+  <label>Order:
+    <select id="animOrder">
+      <option value="forward">Forward</option>
+      <option value="reverse">Reverse</option>
+    </select>
+  </label>
+</div>
 
 <button id="genAnim" disabled>Generate animation</button>
 <span id="animStatus"></span>
@@ -100,6 +125,9 @@ const animStatus = document.getElementById("animStatus");
 const animPreview = document.getElementById("animPreview");
 const downloadGifBtn = document.getElementById("downloadGif");
 const downloadVideoBtn = document.getElementById("downloadVideo");
+const animStart = document.getElementById("animStart");
+const animEnd = document.getElementById("animEnd");
+const animOrder = document.getElementById("animOrder");
 
 let sourceImage = null;
 let sourceName = "collage";
@@ -285,20 +313,34 @@ function renderCollageFrame(scaled, sections) {
   return sliceAndReorder(vc, sections, "h");
 }
 
+// Clamp a section count to the slider's allowed range.
+function clampSections(v) {
+  const min = parseInt(sectionsSlider.min);
+  const max = parseInt(sectionsSlider.max);
+  if (isNaN(v)) return min;
+  return Math.max(min, Math.min(max, v));
+}
+
 function buildAnimFrames() {
   const scaled = scaledSourceCanvas(sourceImage, FRAME_MAX_SIDE / 2);
 
-  const min = parseInt(sectionsSlider.min);
-  const max = parseInt(sectionsSlider.max);
-  const step = 2; // even values keep the collage symmetric (no dropped middle slice)
+  const start = clampSections(parseInt(animStart.value));
+  const end = clampSections(parseInt(animEnd.value));
+  const step = 2; // step of 2 keeps every frame's parity (avoids flicker)
 
+  // Sweep from start to end, keeping start's parity.
   const values = [];
-  for (let s = min; s <= max; s += step) values.push(s);
+  if (start <= end) {
+    for (let s = start; s <= end; s += step) values.push(s);
+  } else {
+    for (let s = start; s >= end; s -= step) values.push(s);
+  }
+  if (!values.length) values.push(start);
 
-  // Ping-pong (min -> max -> min) so the loop has no visible jump.
-  const sequence = values.concat(values.slice(1, -1).reverse());
+  // Frame order: forward (as swept) or reversed.
+  if (animOrder.value === "reverse") values.reverse();
 
-  return sequence.map((s) => renderCollageFrame(scaled, s));
+  return values.map((s) => renderCollageFrame(scaled, s));
 }
 
 function startPreview() {
@@ -341,6 +383,16 @@ genAnimBtn.onclick = () => {
     genAnimBtn.disabled = false;
   }, 30);
 };
+
+// Changing the range or order invalidates any already-generated animation.
+[animStart, animEnd, animOrder].forEach((el) => {
+  el.addEventListener("change", () => {
+    if (animFrames.length) {
+      resetAnimation();
+      animStatus.textContent = "Settings changed — click Generate";
+    }
+  });
+});
 
 function triggerDownload(url, name) {
   const a = document.createElement("a");
