@@ -176,9 +176,12 @@ function processImage() {
   const vc = sliceAndReorder(mosaic, sections, "v");
   const vc2 = sliceAndReorder(vc, sections, "h");
 
-  outputCanvas.width = vc2.width;
-  outputCanvas.height = vc2.height;
-  outputCanvas.getContext("2d").drawImage(vc2, 0, 0);
+  // The collage is a 2x2 mosaic (twice the original in each dimension); scale it
+  // back down so the modified image matches the original size. Same aspect
+  // ratio, so no distortion.
+  outputCanvas.width = sourceImage.width;
+  outputCanvas.height = sourceImage.height;
+  outputCanvas.getContext("2d").drawImage(vc2, 0, 0, sourceImage.width, sourceImage.height);
 
   downloadBtn.disabled = false;
 }
